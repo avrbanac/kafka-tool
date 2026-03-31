@@ -73,18 +73,11 @@ fun ProfileDialog(
         },
         confirmButton = {
             Button(onClick = {
-                var valid = true
-                if (name.isBlank()) {
-                    nameError = "Name is required"
-                    valid = false
-                }
-                if (bootstrapServers.isBlank()) {
-                    serversError = "Bootstrap servers are required"
-                    valid = false
-                }
-                if (valid) {
-                    val saved: ClusterProfile = if (isEdit) {
-                        profile!!.copy(
+                nameError = if (name.isBlank()) "Name is required" else null
+                serversError = if (bootstrapServers.isBlank()) "Bootstrap servers are required" else null
+                if (nameError == null && serversError == null) {
+                    val saved: ClusterProfile = if (profile != null) {
+                        profile.copy(
                             name = name.trim(),
                             bootstrapServers = bootstrapServers.trim(),
                             hostnameMapping = hostnameMapping.trim()

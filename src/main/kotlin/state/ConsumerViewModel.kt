@@ -12,9 +12,9 @@ import model.ConsumeConfig
 import model.KafkaMessage
 
 class ConsumerViewModel(
-    private val bootstrapServers: String,
-    private val profileId: String,
-    private val hostnameMapping: String = "",
+    bootstrapServers: String,
+    profileId: String,
+    hostnameMapping: String = "",
     val topic: String,
     private val scope: CoroutineScope
 ) {

@@ -123,10 +123,6 @@ class ClusterViewModel(
         }
     }
 
-    fun clearError() {
-        _error.value = null
-    }
-
     override fun close() {
         try {
             adminClient?.close()

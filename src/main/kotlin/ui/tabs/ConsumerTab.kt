@@ -62,7 +62,11 @@ import androidx.compose.ui.unit.dp
 import model.ConsumeConfig
 import model.KafkaMessage
 import model.OffsetStrategy
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
 import state.ConsumerViewModel
+
+private val prettyJson: Json = Json { prettyPrint = true }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -535,11 +539,8 @@ private fun prettyPrintIfJson(raw: String?): String {
     val trimmed: String = raw.trim()
     if (!trimmed.startsWith("{") && !trimmed.startsWith("[")) return raw
     return try {
-        val json: kotlinx.serialization.json.JsonElement =
-            kotlinx.serialization.json.Json.parseToJsonElement(trimmed)
-        kotlinx.serialization.json.Json { prettyPrint = true }.encodeToString(
-            kotlinx.serialization.json.JsonElement.serializer(), json
-        )
+        val element: JsonElement = prettyJson.parseToJsonElement(trimmed)
+        prettyJson.encodeToString(JsonElement.serializer(), element)
     } catch (_: Exception) {
         raw
     }

@@ -424,14 +424,13 @@ private fun CreateTopicDialog(
         },
         confirmButton = {
             Button(onClick = {
-                var valid = true
-                if (name.isBlank()) { nameError = "Required"; valid = false }
+                nameError = if (name.isBlank()) "Required" else null
                 val p: Int? = partitions.toIntOrNull()?.takeIf { it > 0 }
-                if (p == null) { partitionsError = "Must be a positive integer"; valid = false }
+                partitionsError = if (p == null) "Must be a positive integer" else null
                 val r: Short? = replicationFactor.toShortOrNull()?.takeIf { it > 0 }
-                if (r == null) { replicationError = "Must be a positive integer"; valid = false }
-                if (valid) {
-                    onCreate(name.trim(), p!!, r!!)
+                replicationError = if (r == null) "Must be a positive integer" else null
+                if (nameError == null && p != null && r != null) {
+                    onCreate(name.trim(), p, r)
                 }
             }) {
                 Text("Create")

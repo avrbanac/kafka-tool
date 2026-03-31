@@ -14,7 +14,7 @@ import org.apache.kafka.common.serialization.StringDeserializer
 import java.time.Duration
 import java.util.Properties
 import java.util.UUID
-import kotlin.coroutines.coroutineContext
+import kotlinx.coroutines.currentCoroutineContext
 
 class ConsumerWrapper(private val bootstrapServers: String, private val profileId: String = "", private val hostnameMapping: String = "") {
 
@@ -33,7 +33,7 @@ class ConsumerWrapper(private val bootstrapServers: String, private val profileI
         props[ConsumerConfig.AUTO_OFFSET_RESET_CONFIG] = "none"
 
         val consumer: KafkaConsumer<String, String> = KafkaConsumer(props)
-        var messageCount: Int = 0
+        var messageCount = 0
 
         try {
             val partitions: List<TopicPartition> = consumer
@@ -70,12 +70,12 @@ class ConsumerWrapper(private val bootstrapServers: String, private val profileI
                 }
             }
 
-            while (coroutineContext.isActive) {
+            while (currentCoroutineContext().isActive) {
                 if (effectiveMaxMessages != null && messageCount >= effectiveMaxMessages) break
 
                 val records = consumer.poll(Duration.ofMillis(500))
                 for (record in records) {
-                    if (!coroutineContext.isActive) break
+                    if (!currentCoroutineContext().isActive) break
                     if (effectiveMaxMessages != null && messageCount >= effectiveMaxMessages) break
 
                     val headers: Map<String, String> = record.headers()
