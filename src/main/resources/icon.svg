@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Background -->
+  <rect width="512" height="512" rx="80" fill="#1C1C1E"/>
+
+  <!-- Connection lines: producers to center -->
+  <line x1="118" y1="138" x2="226" y2="222" stroke="#FFFFFF" stroke-width="14" stroke-linecap="round" opacity="0.7"/>
+  <line x1="88"  y1="256" x2="220" y2="256" stroke="#FFFFFF" stroke-width="14" stroke-linecap="round" opacity="0.7"/>
+  <line x1="118" y1="374" x2="226" y2="290" stroke="#FFFFFF" stroke-width="14" stroke-linecap="round" opacity="0.7"/>
+
+  <!-- Connection lines: center to consumers -->
+  <line x1="286" y1="222" x2="394" y2="138" stroke="#FFFFFF" stroke-width="14" stroke-linecap="round" opacity="0.7"/>
+  <line x1="292" y1="256" x2="424" y2="256" stroke="#FFFFFF" stroke-width="14" stroke-linecap="round" opacity="0.7"/>
+  <line x1="286" y1="290" x2="394" y2="374" stroke="#FFFFFF" stroke-width="14" stroke-linecap="round" opacity="0.7"/>
+
+  <!-- Producer nodes (left) -->
+  <circle cx="100" cy="138" r="36" fill="#FFFFFF" opacity="0.9"/>
+  <circle cx="68"  cy="256" r="36" fill="#FFFFFF" opacity="0.9"/>
+  <circle cx="100" cy="374" r="36" fill="#FFFFFF" opacity="0.9"/>
+
+  <!-- Center broker node -->
+  <circle cx="256" cy="256" r="56" fill="#FFFFFF"/>
+
+  <!-- Consumer nodes (right) -->
+  <circle cx="412" cy="138" r="36" fill="#FFFFFF" opacity="0.9"/>
+  <circle cx="444" cy="256" r="36" fill="#FFFFFF" opacity="0.9"/>
+  <circle cx="412" cy="374" r="36" fill="#FFFFFF" opacity="0.9"/>
+</svg>

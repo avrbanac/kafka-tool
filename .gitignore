@@ -1,0 +1,51 @@
+# IntelliJ IDEA
+.idea/
+*.iml
+*.ipr
+*.iws
+out/
+
+# Gradle
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+# Gradle wrapper (keep the wrapper, ignore local installs)
+gradle-app.setting
+.gradletasknamecache
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Claude Code
+.claude/
+CLAUDE.md
+
+# Kotlin
+.kotlin/
+*.class
+*.kotlin_module
+kotlin-js-store/
+
+# Compiled outputs
+*.jar
+*.war
+*.ear
+*.zip
+*.tar.gz
+*.rar
+
+# Logs
+*.log
+logs/
+
+# Runtime / temp
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
