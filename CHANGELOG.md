@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-04-01
+
+### Added
+- Dark / light theme toggle: icon button pinned at the bottom of the sidebar switches between Material 3 dark and light color schemes
+- Theme preference persisted to `~/.config/kafka-tool/settings.json` and restored on startup with no flash
+- Scrollbar thumb color now adapts to the active theme (visible in both light and dark modes)
+
 ## [0.2.0] - 2026-03-31
 
 ### Added

@@ -26,11 +26,13 @@ import androidx.compose.foundation.rememberScrollbarAdapter
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.LinkOff
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Refresh
@@ -74,6 +76,8 @@ fun Sidebar(
     appState: AppState,
     clusterViewModels: MutableMap<String, ClusterViewModel>,
     scope: CoroutineScope,
+    isDarkTheme: Boolean,
+    onToggleTheme: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val profiles: List<ClusterProfile> by appState.profiles.collectAsState()
@@ -83,83 +87,113 @@ fun Sidebar(
     val expandedProfiles: MutableMap<String, Boolean> = remember { mutableStateMapOf() }
 
     Column(modifier = modifier) {
-        // Fixed header — never scrolls away
+        // Scrollable content area — fills all space above the theme toggle
+        Column(modifier = Modifier.weight(1f)) {
+            // Fixed header — never scrolls away
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "CLUSTERS",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                TooltipIconButton(
+                    tooltip = "Add cluster",
+                    onClick = { showAddDialog = true },
+                    modifier = Modifier.size(24.dp)
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = "Add cluster", modifier = Modifier.size(18.dp))
+                }
+            }
+            HorizontalDivider()
+
+            // One block per profile — headers are fixed, only topics section scrolls
+            profiles.forEach { profile ->
+                val viewModel: ClusterViewModel? = clusterViewModels[profile.id]
+                val connected: Boolean by (viewModel?.connected ?: MutableStateFlow(false)).collectAsState(initial = false)
+                val connecting: Boolean by (viewModel?.connecting ?: MutableStateFlow(false)).collectAsState(initial = false)
+                val error: String? by (viewModel?.error ?: MutableStateFlow<String?>(null)).collectAsState(initial = null)
+                val topics: List<TopicInfo> by (viewModel?.topics ?: MutableStateFlow(emptyList())).collectAsState(initial = emptyList())
+                val isExpanded: Boolean = expandedProfiles[profile.id] ?: true
+
+                // Profile header row — always visible, never scrolls
+                ProfileHeader(
+                    profile = profile,
+                    connected = connected,
+                    connecting = connecting,
+                    error = error,
+                    isExpanded = isExpanded,
+                    topicCount = topics.size,
+                    onToggleExpanded = { expandedProfiles[profile.id] = !isExpanded },
+                    onConnect = {
+                        val vm = ClusterViewModel(profile.id, profile.bootstrapServers, profile.hostnameMapping, scope)
+                        clusterViewModels[profile.id] = vm
+                        vm.connect()
+                    },
+                    onDisconnect = {
+                        clusterViewModels[profile.id]?.disconnect()
+                        clusterViewModels.remove(profile.id)
+                    },
+                    onEdit = { editingProfile = profile },
+                    onDelete = {
+                        clusterViewModels[profile.id]?.close()
+                        clusterViewModels.remove(profile.id)
+                        appState.removeProfile(profile.id)
+                    },
+                    onRefresh = { viewModel?.refreshTopics() },
+                    onOpenTopicManagement = {
+                        appState.openTab(TabType.TopicManagement(profileId = profile.id))
+                    }
+                )
+
+                // Topics section — scrolls independently, fills remaining sidebar space
+                if (connected && isExpanded) {
+                    TopicsSection(
+                        topics = topics,
+                        onOpenConsumer = { topic ->
+                            appState.openTab(TabType.Consumer(topicName = topic.name, profileId = profile.id))
+                        },
+                        onOpenProducer = { topic ->
+                            appState.openTab(TabType.Producer(topicName = topic.name, profileId = profile.id))
+                        },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+
+                HorizontalDivider(modifier = Modifier.padding(horizontal = 8.dp))
+            }
+        }
+
+        // Theme toggle — pinned at the bottom of the sidebar
+        HorizontalDivider()
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 8.dp),
+                .padding(horizontal = 12.dp, vertical = 4.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "CLUSTERS",
+                text = if (isDarkTheme) "DARK" else "LIGHT",
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.Bold
             )
             TooltipIconButton(
-                tooltip = "Add cluster",
-                onClick = { showAddDialog = true },
+                tooltip = if (isDarkTheme) "Switch to light theme" else "Switch to dark theme",
+                onClick = onToggleTheme,
                 modifier = Modifier.size(24.dp)
             ) {
-                Icon(Icons.Default.Add, contentDescription = "Add cluster", modifier = Modifier.size(18.dp))
-            }
-        }
-        HorizontalDivider()
-
-        // One block per profile — headers are fixed, only topics section scrolls
-        profiles.forEach { profile ->
-            val viewModel: ClusterViewModel? = clusterViewModels[profile.id]
-            val connected: Boolean by (viewModel?.connected ?: MutableStateFlow(false)).collectAsState(initial = false)
-            val connecting: Boolean by (viewModel?.connecting ?: MutableStateFlow(false)).collectAsState(initial = false)
-            val error: String? by (viewModel?.error ?: MutableStateFlow<String?>(null)).collectAsState(initial = null)
-            val topics: List<TopicInfo> by (viewModel?.topics ?: MutableStateFlow(emptyList())).collectAsState(initial = emptyList())
-            val isExpanded: Boolean = expandedProfiles[profile.id] ?: true
-
-            // Profile header row — always visible, never scrolls
-            ProfileHeader(
-                profile = profile,
-                connected = connected,
-                connecting = connecting,
-                error = error,
-                isExpanded = isExpanded,
-                topicCount = topics.size,
-                onToggleExpanded = { expandedProfiles[profile.id] = !isExpanded },
-                onConnect = {
-                    val vm = ClusterViewModel(profile.id, profile.bootstrapServers, profile.hostnameMapping, scope)
-                    clusterViewModels[profile.id] = vm
-                    vm.connect()
-                },
-                onDisconnect = {
-                    clusterViewModels[profile.id]?.disconnect()
-                    clusterViewModels.remove(profile.id)
-                },
-                onEdit = { editingProfile = profile },
-                onDelete = {
-                    clusterViewModels[profile.id]?.close()
-                    clusterViewModels.remove(profile.id)
-                    appState.removeProfile(profile.id)
-                },
-                onRefresh = { viewModel?.refreshTopics() },
-                onOpenTopicManagement = {
-                    appState.openTab(TabType.TopicManagement(profileId = profile.id))
-                }
-            )
-
-            // Topics section — scrolls independently, fills remaining sidebar space
-            if (connected && isExpanded) {
-                TopicsSection(
-                    topics = topics,
-                    onOpenConsumer = { topic ->
-                        appState.openTab(TabType.Consumer(topicName = topic.name, profileId = profile.id))
-                    },
-                    onOpenProducer = { topic ->
-                        appState.openTab(TabType.Producer(topicName = topic.name, profileId = profile.id))
-                    },
-                    modifier = Modifier.weight(1f)
+                Icon(
+                    imageVector = if (isDarkTheme) Icons.Default.LightMode else Icons.Default.DarkMode,
+                    contentDescription = if (isDarkTheme) "Switch to light theme" else "Switch to dark theme",
+                    modifier = Modifier.size(18.dp)
                 )
             }
-
-            HorizontalDivider(modifier = Modifier.padding(horizontal = 8.dp))
         }
     }
 

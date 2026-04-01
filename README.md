@@ -13,6 +13,7 @@ A desktop GUI application for Apache Kafka management. Built with Compose Multip
 - **Producer** — send messages with an optional key, value, and arbitrary headers
 - **Multi-tab** — open multiple consumer and producer tabs simultaneously, one per topic
 - **Hostname mapping** — per-cluster `/etc/hosts`-style hostname overrides; useful when broker advertised hostnames do not resolve from your machine
+- **Dark / light theme** — toggle in the sidebar footer; preference is persisted across restarts
 
 ---
 
@@ -45,7 +46,7 @@ cd kafka-tool
 ```bash
 # Debian / Ubuntu package (.deb)
 ./gradlew packageDeb
-# Output: build/compose/binaries/main/deb/kafka-tool_0.2.0_amd64.deb
+# Output: build/compose/binaries/main/deb/kafka-tool_0.3.0_amd64.deb
 
 # AppImage (portable, no installation required)
 ./gradlew packageAppImage
@@ -55,10 +56,22 @@ cd kafka-tool
 ### Installing the .deb package
 
 ```bash
-sudo dpkg -i build/compose/binaries/main/deb/kafka-tool_0.2.0_amd64.deb
-# Launch from your application menu or:
-kafka-tool
+sudo apt install ./build/compose/binaries/main/deb/kafka-tool_0.3.0_amd64.deb
 ```
+
+The package installs everything under `/opt/kafka-tool/`. The binary is **not** placed on `PATH` automatically, so either run it directly:
+
+```bash
+/opt/kafka-tool/bin/kafka-tool
+```
+
+Or create a symlink once so you can just type `kafka-tool`:
+
+```bash
+sudo ln -s /opt/kafka-tool/bin/kafka-tool /usr/local/bin/kafka-tool
+```
+
+Note: the `.desktop` file bundled in the package is not placed in `/usr/share/applications`, so the app will not appear in your desktop application menu after install.
 
 ### Running the AppImage
 
@@ -121,6 +134,8 @@ These mappings apply only to connections made by kafka-tool for this profile. Li
 ## Data persistence
 
 Profiles are saved to `~/.config/kafka-tool/profiles.json`. No passwords or credentials are stored beyond what you enter in the profile form. To reset all profiles, delete this file.
+
+Application settings (theme preference) are saved to `~/.config/kafka-tool/settings.json`.
 
 ---
 
