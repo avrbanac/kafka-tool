@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-04-09
+
+### Added
+- Partition count increase: "Edit partitions / replication" button in the topic detail panel opens a dialog to increase the partition count via `createPartitions`; input is validated to be ≥ the current count
+- Replication factor change: same dialog allows changing the replication factor up or down; replicas are assigned round-robin across available brokers via `alterPartitionReassignments`; error shown if broker count is insufficient
+
 ## [0.4.0] - 2026-04-09
 
 ### Added

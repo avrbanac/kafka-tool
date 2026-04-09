@@ -19,7 +19,7 @@ fun main() {
     application {
         Window(
             onCloseRequest = ::exitApplication,
-            title = "Kafka Tool 0.4.0",
+            title = "Kafka Tool 0.5.0",
             icon = iconPainter,
             state = rememberWindowState(size = DpSize(1280.dp, 800.dp))
         ) {

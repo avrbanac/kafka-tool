@@ -5,9 +5,12 @@ import org.apache.kafka.clients.admin.AdminClient
 import org.apache.kafka.clients.admin.AdminClientConfig
 import org.apache.kafka.clients.admin.AlterConfigOp
 import org.apache.kafka.clients.admin.ConfigEntry
+import org.apache.kafka.clients.admin.NewPartitionReassignment
+import org.apache.kafka.clients.admin.NewPartitions
 import org.apache.kafka.clients.admin.OffsetSpec
 import org.apache.kafka.clients.admin.RecordsToDelete
 import org.apache.kafka.common.TopicPartition
+import java.util.Optional
 import org.apache.kafka.common.config.ConfigResource
 import org.apache.kafka.clients.admin.NewTopic
 import java.util.Properties
@@ -76,6 +79,35 @@ class AdminClientWrapper(bootstrapServers: String, profileId: String = "", hostn
             ops.add(AlterConfigOp(ConfigEntry(key, ""), AlterConfigOp.OpType.DELETE))
         }
         adminClient.incrementalAlterConfigs(mapOf(resource to ops)).all().get(10, TimeUnit.SECONDS)
+    }
+
+    fun increasePartitions(topicName: String, newPartitionCount: Int) {
+        adminClient.createPartitions(mapOf(topicName to NewPartitions.increaseTo(newPartitionCount)))
+            .all().get(10, TimeUnit.SECONDS)
+    }
+
+    fun changeReplicationFactor(topicName: String, newReplicationFactor: Int) {
+        val brokerIds: List<Int> = adminClient.describeCluster().nodes()
+            .get(10, TimeUnit.SECONDS)
+            .map { it.id() }
+            .sorted()
+        if (brokerIds.size < newReplicationFactor) {
+            throw IllegalArgumentException(
+                "Not enough brokers (${brokerIds.size}) for replication factor $newReplicationFactor"
+            )
+        }
+        val description = adminClient.describeTopics(listOf(topicName))
+            .allTopicNames().get(10, TimeUnit.SECONDS)[topicName]
+            ?: throw IllegalStateException("Topic $topicName not found")
+        val reassignments: Map<TopicPartition, Optional<NewPartitionReassignment>> =
+            description.partitions().associate { partitionInfo ->
+                val replicas: List<Int> = (0 until newReplicationFactor).map { i ->
+                    brokerIds[(partitionInfo.partition() + i) % brokerIds.size]
+                }
+                TopicPartition(topicName, partitionInfo.partition()) to
+                    Optional.of(NewPartitionReassignment(replicas))
+            }
+        adminClient.alterPartitionReassignments(reassignments).all().get(10, TimeUnit.SECONDS)
     }
 
     fun truncateTopic(topicName: String) {

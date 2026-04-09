@@ -32,6 +32,7 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Publish
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.DeleteSweep
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.size
@@ -299,6 +300,7 @@ private fun TopicDetailPanel(
     var loadingEditOverrides: Boolean by remember { mutableStateOf(false) }
     var saveError: String? by remember(topic.name) { mutableStateOf(null) }
     var showTruncateDialog: Boolean by remember { mutableStateOf(false) }
+    var showStructureDialog: Boolean by remember { mutableStateOf(false) }
 
     androidx.compose.runtime.LaunchedEffect(topic.name, configRefreshTrigger) {
         configLoading = true
@@ -323,6 +325,9 @@ private fun TopicDetailPanel(
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.weight(1f)
             )
+            TooltipIconButton(tooltip = "Edit partitions / replication", onClick = { showStructureDialog = true }) {
+                Icon(Icons.Default.Tune, contentDescription = "Edit partitions / replication")
+            }
             TooltipIconButton(tooltip = "Delete all messages", onClick = { showTruncateDialog = true }) {
                 Icon(
                     Icons.Default.DeleteSweep,
@@ -428,6 +433,27 @@ private fun TopicDetailPanel(
                 }
             }
         }
+    }
+
+    if (showStructureDialog) {
+        TopicStructureDialog(
+            topicName = topic.name,
+            currentPartitions = topic.partitionCount,
+            currentReplicationFactor = topic.replicationFactor,
+            onDismiss = { showStructureDialog = false },
+            onSave = { newPartitions, newReplicationFactor ->
+                showStructureDialog = false
+                clusterViewModel.updateTopicStructure(
+                    topic.name,
+                    topic.partitionCount,
+                    newPartitions,
+                    topic.replicationFactor,
+                    newReplicationFactor
+                ) { result ->
+                    result.onFailure { e -> saveError = "Failed: ${e.message}" }
+                }
+            }
+        )
     }
 
     if (showTruncateDialog) {
@@ -590,6 +616,83 @@ private fun DetailRow(label: String, value: String) {
             fontFamily = FontFamily.Monospace
         )
     }
+}
+
+@Composable
+private fun TopicStructureDialog(
+    topicName: String,
+    currentPartitions: Int,
+    currentReplicationFactor: Int,
+    onDismiss: () -> Unit,
+    onSave: (newPartitions: Int, newReplicationFactor: Int) -> Unit
+) {
+    var partitions: String by remember { mutableStateOf(currentPartitions.toString()) }
+    var replicationFactor: String by remember { mutableStateOf(currentReplicationFactor.toString()) }
+    var partitionsError: String? by remember { mutableStateOf(null) }
+    var replicationError: String? by remember { mutableStateOf(null) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Topic Structure — $topicName") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("Partitions", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                    Text(
+                        text = "Current: $currentPartitions — can only be increased",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    OutlinedTextField(
+                        value = partitions,
+                        onValueChange = { partitions = it; partitionsError = null },
+                        label = { Text("New partition count") },
+                        isError = partitionsError != null,
+                        supportingText = if (partitionsError != null) ({ Text(partitionsError!!) }) else null,
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("Replication Factor", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                    Text(
+                        text = "Current: $currentReplicationFactor — brokers assigned round-robin",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    OutlinedTextField(
+                        value = replicationFactor,
+                        onValueChange = { replicationFactor = it; replicationError = null },
+                        label = { Text("New replication factor") },
+                        isError = replicationError != null,
+                        supportingText = if (replicationError != null) ({ Text(replicationError!!) }) else null,
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Button(onClick = {
+                val newP: Int? = partitions.toIntOrNull()
+                partitionsError = when {
+                    newP == null || newP <= 0 -> "Must be a positive integer"
+                    newP < currentPartitions -> "Cannot be less than current ($currentPartitions)"
+                    else -> null
+                }
+                val newR: Int? = replicationFactor.toIntOrNull()?.takeIf { it > 0 }
+                replicationError = if (newR == null) "Must be a positive integer" else null
+                if (partitionsError == null && replicationError == null && newP != null && newR != null) {
+                    onSave(newP, newR)
+                }
+            }) {
+                Text("Save")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        }
+    )
 }
 
 @Composable

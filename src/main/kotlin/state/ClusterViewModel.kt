@@ -123,6 +123,31 @@ class ClusterViewModel(
         }
     }
 
+    fun updateTopicStructure(
+        topicName: String,
+        currentPartitionCount: Int,
+        newPartitionCount: Int,
+        currentReplicationFactor: Int,
+        newReplicationFactor: Int,
+        onResult: (Result<Unit>) -> Unit
+    ) {
+        scope.launch(Dispatchers.IO) {
+            try {
+                if (newPartitionCount != currentPartitionCount) {
+                    adminClient?.increasePartitions(topicName, newPartitionCount)
+                }
+                if (newReplicationFactor != currentReplicationFactor) {
+                    adminClient?.changeReplicationFactor(topicName, newReplicationFactor)
+                }
+                delay(500)
+                loadTopicsInternal()
+                onResult(Result.success(Unit))
+            } catch (e: Exception) {
+                onResult(Result.failure(e))
+            }
+        }
+    }
+
     fun truncateTopic(topicName: String, onResult: (Result<Unit>) -> Unit) {
         scope.launch(Dispatchers.IO) {
             try {

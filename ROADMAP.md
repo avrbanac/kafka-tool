@@ -16,8 +16,8 @@
 ## Phase 2 — Power Features
 
 - [x] Topic config edit (per-topic configuration parameters)
-- [ ] Partition reassignment
-- [ ] Replica management
+- [x] Partition reassignment
+- [x] Replica management
 - [ ] Consumer group list and describe
 - [ ] Consumer group offset tracking (persist locally)
 - [ ] SSL / SASL authentication per cluster profile (PLAIN, SCRAM-SHA-256/512)
