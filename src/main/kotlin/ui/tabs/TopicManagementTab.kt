@@ -30,7 +30,11 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Publish
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Button
@@ -288,8 +292,15 @@ private fun TopicDetailPanel(
     var topicConfig: Map<String, String>? by remember(topic.name) { mutableStateOf(null) }
     var configLoading: Boolean by remember(topic.name) { mutableStateOf(false) }
     var configError: String? by remember(topic.name) { mutableStateOf(null) }
+    var configRefreshTrigger: Int by remember { mutableStateOf(0) }
 
-    androidx.compose.runtime.LaunchedEffect(topic.name) {
+    var showEditDialog: Boolean by remember { mutableStateOf(false) }
+    var editOverrides: Map<String, String> by remember { mutableStateOf(emptyMap()) }
+    var loadingEditOverrides: Boolean by remember { mutableStateOf(false) }
+    var saveError: String? by remember(topic.name) { mutableStateOf(null) }
+    var showTruncateDialog: Boolean by remember { mutableStateOf(false) }
+
+    androidx.compose.runtime.LaunchedEffect(topic.name, configRefreshTrigger) {
         configLoading = true
         configError = null
         clusterViewModel.getTopicConfig(topic.name) { result ->
@@ -301,11 +312,46 @@ private fun TopicDetailPanel(
     }
 
     Column(modifier = modifier.padding(16.dp)) {
-        Text(
-            text = topic.name,
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.Bold
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = topic.name,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.weight(1f)
+            )
+            TooltipIconButton(tooltip = "Delete all messages", onClick = { showTruncateDialog = true }) {
+                Icon(
+                    Icons.Default.DeleteSweep,
+                    contentDescription = "Delete all messages",
+                    tint = MaterialTheme.colorScheme.error
+                )
+            }
+            if (loadingEditOverrides) {
+                CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+            } else {
+                TooltipIconButton(tooltip = "Edit config", onClick = {
+                    saveError = null
+                    loadingEditOverrides = true
+                    clusterViewModel.getTopicConfigOverrides(topic.name) { result ->
+                        result
+                            .onSuccess { overrides ->
+                                editOverrides = overrides
+                                showEditDialog = true
+                            }
+                            .onFailure { e ->
+                                saveError = "Failed to load overrides: ${e.message}"
+                            }
+                        loadingEditOverrides = false
+                    }
+                }) {
+                    Icon(Icons.Default.Edit, contentDescription = "Edit config")
+                }
+            }
+        }
         HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
         DetailRow(label = "Partitions", value = topic.partitionCount.toString())
@@ -315,6 +361,15 @@ private fun TopicDetailPanel(
         Spacer(modifier = Modifier.padding(top = 12.dp))
         Text("Configuration", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
         HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+        saveError?.let { err ->
+            Text(
+                text = err,
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(bottom = 4.dp)
+            )
+        }
 
         when {
             configLoading -> CircularProgressIndicator(modifier = Modifier.padding(8.dp))
@@ -373,6 +428,50 @@ private fun TopicDetailPanel(
                 }
             }
         }
+    }
+
+    if (showTruncateDialog) {
+        AlertDialog(
+            onDismissRequest = { showTruncateDialog = false },
+            title = { Text("Delete All Messages") },
+            text = {
+                Text("All messages in \"${topic.name}\" will be permanently deleted.\n\nConsumers with uncommitted offsets may skip data or fail when they reconnect.")
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showTruncateDialog = false
+                        clusterViewModel.truncateTopic(topic.name) { result ->
+                            result.onFailure { e -> saveError = "Delete failed: ${e.message}" }
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text("Delete Messages")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showTruncateDialog = false }) { Text("Cancel") }
+            }
+        )
+    }
+
+    if (showEditDialog) {
+        EditConfigDialog(
+            topicName = topic.name,
+            initialOverrides = editOverrides,
+            onDismiss = { showEditDialog = false },
+            onSave = { setEntries, deleteKeys ->
+                showEditDialog = false
+                if (setEntries.isNotEmpty() || deleteKeys.isNotEmpty()) {
+                    clusterViewModel.updateTopicConfig(topic.name, setEntries, deleteKeys) { result ->
+                        result
+                            .onSuccess { configRefreshTrigger++ }
+                            .onFailure { e -> saveError = "Save failed: ${e.message}" }
+                    }
+                }
+            }
+        )
     }
 }
 
@@ -491,4 +590,111 @@ private fun DetailRow(label: String, value: String) {
             fontFamily = FontFamily.Monospace
         )
     }
+}
+
+@Composable
+private fun EditConfigDialog(
+    topicName: String,
+    initialOverrides: Map<String, String>,
+    onDismiss: () -> Unit,
+    onSave: (setEntries: Map<String, String>, deleteKeys: Set<String>) -> Unit
+) {
+    var entries: List<Pair<String, String>> by remember {
+        mutableStateOf(initialOverrides.entries.map { it.key to it.value })
+    }
+    val originalKeys: Set<String> = remember { initialOverrides.keys.toSet() }
+    var validationError: String? by remember { mutableStateOf(null) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        modifier = Modifier.widthIn(min = 500.dp),
+        title = { Text("Edit Config — $topicName") },
+        text = {
+            Column(
+                modifier = Modifier
+                    .heightIn(max = 380.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                if (entries.isEmpty()) {
+                    Text(
+                        text = "No overrides set. Add one below.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                entries.forEachIndexed { index, (key, value) ->
+                    val isExisting: Boolean = key in originalKeys
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        OutlinedTextField(
+                            value = key,
+                            onValueChange = { newKey ->
+                                if (!isExisting) {
+                                    validationError = null
+                                    entries = entries.toMutableList().also { it[index] = newKey to value }
+                                }
+                            },
+                            label = { Text("Key") },
+                            singleLine = true,
+                            readOnly = isExisting,
+                            modifier = Modifier.weight(1f)
+                        )
+                        OutlinedTextField(
+                            value = value,
+                            onValueChange = { newValue ->
+                                validationError = null
+                                entries = entries.toMutableList().also { it[index] = key to newValue }
+                            },
+                            label = { Text("Value") },
+                            singleLine = true,
+                            modifier = Modifier.weight(1f)
+                        )
+                        IconButton(onClick = {
+                            entries = entries.filterIndexed { i, _ -> i != index }
+                        }) {
+                            Icon(
+                                Icons.Default.Delete,
+                                contentDescription = "Remove override",
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    }
+                }
+                TextButton(onClick = { entries = entries + ("" to "") }) {
+                    Icon(Icons.Default.Add, contentDescription = null)
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Add override")
+                }
+                validationError?.let { err ->
+                    Text(
+                        text = err,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Button(onClick = {
+                val newEntries: List<Pair<String, String>> = entries.filter { it.first !in originalKeys }
+                if (newEntries.any { it.first.isBlank() }) {
+                    validationError = "New override keys must not be empty"
+                    return@Button
+                }
+                val setEntries: Map<String, String> = entries
+                    .filter { (k, _) -> k.isNotBlank() }
+                    .associate { (k, v) -> k to v }
+                val deleteKeys: Set<String> = originalKeys - entries.map { it.first }.toSet()
+                onSave(setEntries, deleteKeys)
+            }) {
+                Text("Save")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        }
+    )
 }

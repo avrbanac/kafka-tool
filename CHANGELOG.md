@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-04-09
+
+### Added
+- Topic config edit: "Edit Config" button in the topic detail panel opens a dialog showing only explicitly overridden config entries (`DYNAMIC_TOPIC_CONFIG`); supports editing values, deleting overrides, and adding new key-value overrides; changes applied via `incrementalAlterConfigs`
+- Topic truncation: "Delete All Messages" button in the topic detail panel deletes all records using the `deleteRecords` API; confirmation dialog warns about impact on consumers with uncommitted offsets
+
+### Fixed
+- Application now appears under the Development category in the KDE application menu (`menuGroup = "Development"` set in build config)
+
 ## [0.3.0] - 2026-04-01
 
 ### Added

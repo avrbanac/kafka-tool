@@ -8,7 +8,8 @@ A desktop GUI application for Apache Kafka management. Built with Compose Multip
 
 - **Cluster profiles** — manage multiple Kafka cluster connections; profiles are persisted locally and survive restarts
 - **Topics** — list all topics with partition count and replication factor; create and delete topics; open a producer or consumer directly from a topic row
-- **Topic config** — view per-topic configuration parameters in a scrollable, selectable detail panel
+- **Topic config** — view per-topic configuration parameters in a scrollable, selectable detail panel; edit overrides via a dedicated dialog (add, change, or remove explicitly set config entries)
+- **Topic truncation** — delete all messages from a topic using the `deleteRecords` API, with a confirmation dialog
 - **Consumer** — consume messages with configurable offset strategy (earliest, latest, or a specific offset), an optional message limit, or unlimited streaming mode; inspect individual messages in a detail panel
 - **Producer** — send messages with an optional key, value, and arbitrary headers
 - **Multi-tab** — open multiple consumer and producer tabs simultaneously, one per topic
@@ -46,7 +47,7 @@ cd kafka-tool
 ```bash
 # Debian / Ubuntu package (.deb)
 ./gradlew packageDeb
-# Output: build/compose/binaries/main/deb/kafka-tool_0.3.0_amd64.deb
+# Output: build/compose/binaries/main/deb/kafka-tool_0.4.0_amd64.deb
 
 # AppImage (portable, no installation required)
 ./gradlew packageAppImage
@@ -56,7 +57,7 @@ cd kafka-tool
 ### Installing the .deb package
 
 ```bash
-sudo apt install ./build/compose/binaries/main/deb/kafka-tool_0.3.0_amd64.deb
+sudo apt install ./build/compose/binaries/main/deb/kafka-tool_0.4.0_amd64.deb
 ```
 
 The package installs everything under `/opt/kafka-tool/`. The binary is **not** placed on `PATH` automatically, so either run it directly:

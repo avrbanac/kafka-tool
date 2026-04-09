@@ -123,6 +123,44 @@ class ClusterViewModel(
         }
     }
 
+    fun truncateTopic(topicName: String, onResult: (Result<Unit>) -> Unit) {
+        scope.launch(Dispatchers.IO) {
+            try {
+                adminClient?.truncateTopic(topicName)
+                onResult(Result.success(Unit))
+            } catch (e: Exception) {
+                onResult(Result.failure(e))
+            }
+        }
+    }
+
+    fun getTopicConfigOverrides(topicName: String, onResult: (Result<Map<String, String>>) -> Unit) {
+        scope.launch(Dispatchers.IO) {
+            try {
+                val overrides: Map<String, String> = adminClient?.getTopicConfigOverrides(topicName) ?: emptyMap()
+                onResult(Result.success(overrides))
+            } catch (e: Exception) {
+                onResult(Result.failure(e))
+            }
+        }
+    }
+
+    fun updateTopicConfig(
+        topicName: String,
+        setEntries: Map<String, String>,
+        deleteKeys: Set<String>,
+        onResult: (Result<Unit>) -> Unit
+    ) {
+        scope.launch(Dispatchers.IO) {
+            try {
+                adminClient?.updateTopicConfig(topicName, setEntries, deleteKeys)
+                onResult(Result.success(Unit))
+            } catch (e: Exception) {
+                onResult(Result.failure(e))
+            }
+        }
+    }
+
     override fun close() {
         try {
             adminClient?.close()

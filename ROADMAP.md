@@ -15,7 +15,7 @@
 
 ## Phase 2 — Power Features
 
-- [ ] Topic config edit (per-topic configuration parameters)
+- [x] Topic config edit (per-topic configuration parameters)
 - [ ] Partition reassignment
 - [ ] Replica management
 - [ ] Consumer group list and describe
