@@ -18,4 +18,15 @@ data class KafkaMessage(
             .withZone(ZoneId.systemDefault())
         return formatter.format(Instant.ofEpochMilli(timestamp))
     }
+
+    fun matchesFilter(filter: String): Boolean {
+        val lowerFilter: String = filter.lowercase()
+        if (key?.lowercase()?.contains(lowerFilter) == true) return true
+        if (value?.lowercase()?.contains(lowerFilter) == true) return true
+        for ((headerKey: String, headerValue: String) in headers) {
+            if (headerKey.lowercase().contains(lowerFilter)) return true
+            if (headerValue.lowercase().contains(lowerFilter)) return true
+        }
+        return false
+    }
 }

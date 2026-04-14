@@ -11,7 +11,7 @@ A desktop GUI application for Apache Kafka management. Built with Compose Multip
 - **Topic config** — view per-topic configuration parameters in a scrollable, selectable detail panel; edit overrides via a dedicated dialog (add, change, or remove explicitly set config entries)
 - **Topic truncation** — delete all messages from a topic using the `deleteRecords` API, with a confirmation dialog
 - **Topic structure** — increase partition count or change replication factor on an existing topic; replication changes use round-robin broker assignment
-- **Consumer** — consume messages with configurable offset strategy (earliest, latest, or a specific offset), an optional message limit, or unlimited streaming mode; inspect individual messages in a detail panel
+- **Consumer** — consume messages with configurable offset strategy (earliest, latest, or a specific offset), an optional message limit, or unlimited streaming mode; inspect individual messages in a detail panel; filter consumed messages by key, value, or headers with search-as-you-type
 - **Producer** — send messages with an optional key, value, and arbitrary headers
 - **Multi-tab** — open multiple consumer and producer tabs simultaneously, one per topic
 - **Hostname mapping** — per-cluster `/etc/hosts`-style hostname overrides; useful when broker advertised hostnames do not resolve from your machine
@@ -48,7 +48,7 @@ cd kafka-tool
 ```bash
 # Debian / Ubuntu package (.deb)
 ./gradlew packageDeb
-# Output: build/compose/binaries/main/deb/kafka-tool_0.5.0_amd64.deb
+# Output: build/compose/binaries/main/deb/kafka-tool_0.6.0_amd64.deb
 
 # AppImage (portable, no installation required)
 ./gradlew packageAppImage
@@ -58,7 +58,7 @@ cd kafka-tool
 ### Installing the .deb package
 
 ```bash
-sudo apt install ./build/compose/binaries/main/deb/kafka-tool_0.5.0_amd64.deb
+sudo apt install ./build/compose/binaries/main/deb/kafka-tool_0.6.0_amd64.deb
 ```
 
 The package installs everything under `/opt/kafka-tool/`. The binary is **not** placed on `PATH` automatically, so either run it directly:

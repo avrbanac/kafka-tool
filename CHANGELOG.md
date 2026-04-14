@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-04-14
+
+### Added
+- Consumer message filter: search-as-you-type text field above the message list filters consumed messages by key, value, or headers (both keys and values); case-insensitive matching; status bar shows filtered count (e.g. "5 of 42 messages"); clear button to reset the filter
+
 ## [0.5.0] - 2026-04-09
 
 ### Added

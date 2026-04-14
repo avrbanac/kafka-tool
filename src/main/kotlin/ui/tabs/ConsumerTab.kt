@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -29,6 +30,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -77,6 +79,8 @@ fun ConsumerTab(
     val messages: List<KafkaMessage> by viewModel.messages.collectAsState()
     val consuming: Boolean by viewModel.consuming.collectAsState()
     val error: String? by viewModel.error.collectAsState()
+    val filterText: String by viewModel.filterText.collectAsState()
+    val filteredMessages: List<KafkaMessage> by viewModel.filteredMessages.collectAsState()
 
     var selectedStrategy: OffsetStrategy by remember { mutableStateOf(OffsetStrategy.Latest) }
     var strategyExpanded: Boolean by remember { mutableStateOf(false) }
@@ -322,15 +326,62 @@ fun ConsumerTab(
                 }
                 HorizontalDivider()
 
+                // Filter field
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                        .border(1.dp, MaterialTheme.colorScheme.outline, MaterialTheme.shapes.extraSmall)
+                        .padding(horizontal = 8.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Default.Search,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    BasicTextField(
+                        value = filterText,
+                        onValueChange = { viewModel.setFilterText(it) },
+                        singleLine = true,
+                        modifier = Modifier.weight(1f),
+                        textStyle = MaterialTheme.typography.bodySmall.copy(
+                            color = MaterialTheme.colorScheme.onSurface
+                        ),
+                        decorationBox = { innerTextField: @Composable () -> Unit ->
+                            Box {
+                                if (filterText.isEmpty()) {
+                                    Text(
+                                        "Filter by key, value, or headers...",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                innerTextField()
+                            }
+                        }
+                    )
+                    if (filterText.isNotEmpty()) {
+                        Icon(
+                            Icons.Default.Close,
+                            contentDescription = "Clear filter",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(16.dp).clickable { viewModel.setFilterText("") }
+                        )
+                    }
+                }
+
                 val listState = rememberLazyListState()
                 LaunchedEffect(messages.size) {
-                    if (messages.isNotEmpty()) {
-                        listState.scrollToItem(messages.size - 1)
+                    if (filteredMessages.isNotEmpty() && filterText.isBlank()) {
+                        listState.scrollToItem(filteredMessages.size - 1)
                     }
                 }
 
                 LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
-                    items(messages) { message ->
+                    items(filteredMessages) { message ->
                         MessageRow(
                             message = message,
                             isSelected = message == selectedMessage,
@@ -361,7 +412,8 @@ fun ConsumerTab(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "${messages.size} message${if (messages.size != 1) "s" else ""}",
+                text = if (filterText.isBlank()) "${messages.size} message${if (messages.size != 1) "s" else ""}"
+                       else "${filteredMessages.size} of ${messages.size} message${if (messages.size != 1) "s" else ""}",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

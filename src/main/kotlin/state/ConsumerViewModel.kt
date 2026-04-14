@@ -5,8 +5,11 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import model.ConsumeConfig
 import model.KafkaMessage
@@ -28,6 +31,15 @@ class ConsumerViewModel(
 
     private val _error: MutableStateFlow<String?> = MutableStateFlow(null)
     val error: StateFlow<String?> = _error.asStateFlow()
+
+    private val _filterText: MutableStateFlow<String> = MutableStateFlow("")
+    val filterText: StateFlow<String> = _filterText.asStateFlow()
+
+    val filteredMessages: StateFlow<List<KafkaMessage>> = combine(_messages, _filterText) {
+        messages: List<KafkaMessage>, filter: String ->
+        if (filter.isBlank()) messages
+        else messages.filter { message: KafkaMessage -> message.matchesFilter(filter) }
+    }.stateIn(scope, SharingStarted.Eagerly, emptyList())
 
     private var consumeJob: Job? = null
 
@@ -63,5 +75,9 @@ class ConsumerViewModel(
         stopConsuming()
         _messages.value = emptyList()
         _error.value = null
+    }
+
+    fun setFilterText(text: String) {
+        _filterText.value = text
     }
 }
