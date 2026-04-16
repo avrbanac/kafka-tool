@@ -5,9 +5,12 @@ import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.common.header.internals.RecordHeader
 import org.apache.kafka.common.serialization.StringSerializer
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 import java.util.Properties
 
 class ProducerWrapper(bootstrapServers: String, profileId: String = "", hostnameMapping: String = "") : AutoCloseable {
+    private val logger: Logger = LoggerFactory.getLogger(ProducerWrapper::class.java)
     private val producer: KafkaProducer<String, String>
 
     init {
@@ -19,6 +22,7 @@ class ProducerWrapper(bootstrapServers: String, profileId: String = "", hostname
         props[ProducerConfig.ACKS_CONFIG] = "1"
         props[ProducerConfig.RETRIES_CONFIG] = "1"
         producer = KafkaProducer(props)
+        logger.info("Producer created for bootstrap servers: {}", bootstrapServers)
     }
 
     fun send(
@@ -27,14 +31,19 @@ class ProducerWrapper(bootstrapServers: String, profileId: String = "", hostname
         value: String,
         headers: Map<String, String> = emptyMap()
     ) {
+        logger.debug("Sending message to topic '{}', key={}, headers={}", topic, if (key != null) "present" else "null", headers.size)
         val record: ProducerRecord<String, String> = ProducerRecord(topic, null, key, value)
         headers.forEach { (k, v) -> record.headers().add(RecordHeader(k, v.toByteArray())) }
         producer.send(record).get()
+        logger.debug("Message sent to topic '{}'", topic)
     }
 
     override fun close() {
         try {
             producer.close()
-        } catch (_: Exception) {}
+            logger.debug("Producer closed")
+        } catch (e: Exception) {
+            logger.warn("Error closing producer", e)
+        }
     }
 }

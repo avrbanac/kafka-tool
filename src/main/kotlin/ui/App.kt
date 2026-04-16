@@ -25,12 +25,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.CoroutineScope
 import model.AppSettings
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 import persistence.ProfileRepository
 import persistence.SettingsRepository
 import state.AppState
 import state.ClusterViewModel
 import ui.sidebar.Sidebar
 import ui.tabs.TabArea
+
+private val logger: Logger = LoggerFactory.getLogger("ui.App")
 
 @Composable
 fun App() {
@@ -42,6 +46,7 @@ fun App() {
     var isDarkTheme: Boolean by remember { mutableStateOf(settingsRepository.loadSettings().darkTheme) }
 
     LaunchedEffect(Unit) {
+        logger.info("App initialized, darkTheme={}", isDarkTheme)
         appState.setProfiles(profileRepository.loadProfiles())
     }
 

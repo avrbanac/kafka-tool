@@ -13,6 +13,8 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import model.ConsumeConfig
 import model.KafkaMessage
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 
 class ConsumerViewModel(
     bootstrapServers: String,
@@ -21,6 +23,7 @@ class ConsumerViewModel(
     val topic: String,
     private val scope: CoroutineScope
 ) {
+    private val logger: Logger = LoggerFactory.getLogger(ConsumerViewModel::class.java)
     private val consumerWrapper: ConsumerWrapper = ConsumerWrapper(bootstrapServers, profileId, hostnameMapping)
 
     private val _messages: MutableStateFlow<List<KafkaMessage>> = MutableStateFlow(emptyList())
@@ -44,6 +47,7 @@ class ConsumerViewModel(
     private var consumeJob: Job? = null
 
     fun startConsuming(config: ConsumeConfig) {
+        logger.info("Starting consumer for topic '{}', strategy={}, maxMessages={}", topic, config.offsetStrategy, config.maxMessages)
         consumeJob?.cancel()
         _messages.value = emptyList()
         _error.value = null
@@ -56,10 +60,12 @@ class ConsumerViewModel(
                     .collect { message: KafkaMessage ->
                         _messages.value = _messages.value + message
                     }
+                logger.info("Consumer for topic '{}' completed, {} message(s) collected", topic, _messages.value.size)
             } catch (e: CancellationException) {
-                // normal stop, no error
+                logger.info("Consumer for topic '{}' cancelled, {} message(s) collected", topic, _messages.value.size)
             } catch (e: Exception) {
                 _error.value = "Consumer error: ${e.message}"
+                logger.error("Consumer error for topic '{}'", topic, e)
             } finally {
                 _consuming.value = false
             }
@@ -67,6 +73,7 @@ class ConsumerViewModel(
     }
 
     fun stopConsuming() {
+        logger.info("Stopping consumer for topic '{}'", topic)
         consumeJob?.cancel()
         _consuming.value = false
     }
@@ -75,6 +82,7 @@ class ConsumerViewModel(
         stopConsuming()
         _messages.value = emptyList()
         _error.value = null
+        logger.debug("Messages cleared for topic '{}'", topic)
     }
 
     fun setFilterText(text: String) {

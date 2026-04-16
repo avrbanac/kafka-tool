@@ -6,6 +6,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-04-16
+
+### Added
+- Built-in SSH tunneling: connect to remote Kafka clusters through an SSH host without external tools like sshuttle; tunnels are created dynamically for all discovered brokers
+- Proxy jump support: optional two-hop SSH connection through an intermediate jump host to reach the target SSH host
+- Broker auto-discovery: raw Kafka metadata fetch discovers all cluster brokers and creates tunnels automatically on connect
+- Fast-fail DNS resolver: unmapped hostnames fail instantly during SSH tunneling instead of blocking on slow DNS timeouts
+
+### Changed
+- Removed manual hostname mapping field from the profile dialog; hostname resolution for tunneled brokers is now fully automatic
+- Profile dialog SSH section: all connection details (host, port, username, key path, proxy jump) are configured explicitly in the application — no hidden `~/.ssh/config` parsing
+
+## [1.0.0] - 2026-04-15
+
+### Added
+- File-based logging with Logback: logs written to `~/.local/share/kafka-tool/logs/kafka-tool.log` with daily + size-based rolling (10 MB per file, 7-day retention, 50 MB cap); console output preserved for terminal use
+- Logging instrumented throughout the entire application: persistence, Kafka wrappers, view models, hostname resolver, and app lifecycle
+- Verbosity flags: `-v` for INFO level, `-vv` for DEBUG level; default is WARN
+
+### Changed
+- Replaced `slf4j-simple` with `logback-classic` for structured, configurable logging
+- Persistence layer errors are now logged instead of silently swallowed
+
 ## [0.6.0] - 2026-04-14
 
 ### Added

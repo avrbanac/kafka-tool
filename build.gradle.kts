@@ -8,7 +8,7 @@ plugins {
 }
 
 group = "com.kafkatool"
-version = "0.6.0"
+version = "1.1.0"
 
 kotlin {
     jvmToolchain(21)
@@ -27,7 +27,8 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-swing:1.9.0")
-    implementation("org.slf4j:slf4j-simple:2.0.13")
+    implementation("ch.qos.logback:logback-classic:1.5.12")
+    implementation("com.hierynomus:sshj:0.39.0")
 }
 
 compose.desktop {
@@ -36,7 +37,7 @@ compose.desktop {
         nativeDistributions {
             targetFormats(TargetFormat.Deb, TargetFormat.AppImage)
             packageName = "kafka-tool"
-            packageVersion = "0.6.0"
+            packageVersion = "1.1.0"
             description = "Desktop GUI tool for Apache Kafka"
             vendor = "kafka-tool"
             modules("java.management", "java.naming", "java.security.sasl")

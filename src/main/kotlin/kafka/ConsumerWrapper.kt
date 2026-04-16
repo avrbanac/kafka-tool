@@ -11,18 +11,22 @@ import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.consumer.KafkaConsumer
 import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.serialization.StringDeserializer
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 import java.time.Duration
 import java.util.Properties
 import java.util.UUID
 import kotlinx.coroutines.currentCoroutineContext
 
 class ConsumerWrapper(private val bootstrapServers: String, private val profileId: String = "", private val hostnameMapping: String = "") {
+    private val logger: Logger = LoggerFactory.getLogger(ConsumerWrapper::class.java)
 
     fun consume(
         topic: String,
         offsetStrategy: OffsetStrategy,
         maxMessages: Int?
     ): Flow<KafkaMessage> = flow {
+        logger.info("Starting consumer for topic '{}', strategy={}, maxMessages={}", topic, offsetStrategy, maxMessages)
         MappingHostnameStore.applyMapping(profileId, hostnameMapping)
         val props = Properties()
         props[ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG] = bootstrapServers
@@ -39,6 +43,7 @@ class ConsumerWrapper(private val bootstrapServers: String, private val profileI
             val partitions: List<TopicPartition> = consumer
                 .partitionsFor(topic)
                 .map { info -> TopicPartition(topic, info.partition()) }
+            logger.debug("Assigned {} partition(s) for topic '{}'", partitions.size, topic)
             consumer.assign(partitions)
 
             var effectiveMaxMessages: Int? = maxMessages
@@ -64,6 +69,7 @@ class ConsumerWrapper(private val bootstrapServers: String, private val profileI
                         consumer.seek(tp, endOffsets[tp]!! - 1L)
                     }
                     effectiveMaxMessages = nonEmptyPartitions.size
+                    logger.debug("LastMessage strategy: {} non-empty partition(s)", nonEmptyPartitions.size)
                 }
                 is OffsetStrategy.SpecificOffset -> partitions.forEach { tp ->
                     consumer.seek(tp, offsetStrategy.offset)
@@ -94,8 +100,10 @@ class ConsumerWrapper(private val bootstrapServers: String, private val profileI
                     messageCount++
                 }
             }
+            logger.info("Consumer for topic '{}' finished, {} message(s) consumed", topic, messageCount)
         } finally {
             consumer.close()
+            logger.debug("Kafka consumer closed for topic '{}'", topic)
         }
     }.flowOn(Dispatchers.IO)
 }

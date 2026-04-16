@@ -14,7 +14,7 @@ A desktop GUI application for Apache Kafka management. Built with Compose Multip
 - **Consumer** — consume messages with configurable offset strategy (earliest, latest, or a specific offset), an optional message limit, or unlimited streaming mode; inspect individual messages in a detail panel; filter consumed messages by key, value, or headers with search-as-you-type
 - **Producer** — send messages with an optional key, value, and arbitrary headers
 - **Multi-tab** — open multiple consumer and producer tabs simultaneously, one per topic
-- **Hostname mapping** — per-cluster `/etc/hosts`-style hostname overrides; useful when broker advertised hostnames do not resolve from your machine
+- **SSH tunneling** — built-in SSH tunnel support with optional proxy jump; connects to remote Kafka clusters through an SSH host without external tools; broker addresses are discovered automatically and tunnels are created dynamically
 - **Dark / light theme** — toggle in the sidebar footer; preference is persisted across restarts
 
 ---
@@ -48,7 +48,7 @@ cd kafka-tool
 ```bash
 # Debian / Ubuntu package (.deb)
 ./gradlew packageDeb
-# Output: build/compose/binaries/main/deb/kafka-tool_0.6.0_amd64.deb
+# Output: build/compose/binaries/main/deb/kafka-tool_1.1.0_amd64.deb
 
 # AppImage (portable, no installation required)
 ./gradlew packageAppImage
@@ -58,7 +58,7 @@ cd kafka-tool
 ### Installing the .deb package
 
 ```bash
-sudo apt install ./build/compose/binaries/main/deb/kafka-tool_0.6.0_amd64.deb
+sudo apt install ./build/compose/binaries/main/deb/kafka-tool_1.1.0_amd64.deb
 ```
 
 The package installs everything under `/opt/kafka-tool/`. The binary is **not** placed on `PATH` automatically, so either run it directly:
@@ -93,49 +93,59 @@ Add a cluster profile via the **+** button in the sidebar. You need:
 - **Bootstrap servers** — e.g. `broker1.internal:9092,broker2.internal:9092`
 - **Profile name** — a label shown in the sidebar
 
-### Connecting through a VPN / SSH tunnel with sshuttle
+### Connecting through an SSH tunnel
 
-If your Kafka brokers live on a remote network that is not directly routable (e.g. a staging or production environment behind a VPN or bastion host), you can use [sshuttle](https://github.com/sshuttle/sshuttle) to transparently tunnel traffic without a full VPN client.
+If your Kafka brokers live on a remote network (e.g. a staging or production environment behind a bastion host), enable **SSH Tunnel** in the cluster profile dialog. The application connects to the remote host via SSH, discovers all broker addresses automatically, and creates local port-forwarding tunnels for each broker — no external tools like sshuttle required.
 
-**Install sshuttle:**
+**Profile configuration:**
+
+| Field | Example | Description |
+|---|---|---|
+| Bootstrap Servers | `127.0.0.1:9092` | Kafka address as seen from the SSH host |
+| SSH Host | `10.255.0.120` | Host to SSH into (must be reachable from your machine or via the jump host) |
+| SSH Port | `22` | SSH port |
+| SSH Username | `bulb` | SSH login user |
+| Auth Type | Key File | Key file or password authentication |
+| Private Key Path | *(blank)* | Leave blank to auto-detect from `~/.ssh/` |
+
+**Proxy jump (optional):** If the SSH host is not directly reachable, enable **Proxy Jump** and configure the intermediate jump host. The application will first connect to the jump host, then hop to the target SSH host.
+
+| Field | Example | Description |
+|---|---|---|
+| Jump Host | `10.255.0.38` | Intermediate bastion host |
+| Jump Port | `22` | Jump host SSH port |
+| Jump Username | `avrbanac` | Jump host login user |
+| Jump Private Key Path | *(blank)* | Leave blank to auto-detect |
+
+**How it works:**
+
+1. The application establishes an SSH connection (optionally through the jump host)
+2. A tunnel is created for the bootstrap server
+3. A raw Kafka metadata request discovers all broker addresses in the cluster
+4. Tunnels are created dynamically for every discovered broker
+5. The Kafka client connects through the tunnels — all broker communication is encrypted via SSH
+
+Each tunnel binds to a unique loopback address (`127.0.0.2`, `127.0.0.3`, ...) on the original broker port. If the cluster grows, new brokers are picked up automatically on the next connect.
+
+---
+
+## Logging
+
+Logs are written to `~/.local/share/kafka-tool/logs/kafka-tool.log` with automatic rolling (daily + 10 MB size limit, 7-day retention, 50 MB total cap). Console output is also enabled when running from a terminal.
+
+The default log level is **WARN**. Use verbosity flags to increase it:
 
 ```bash
-# Debian/Ubuntu
-sudo apt install sshuttle
-
-# pip
-pip install sshuttle
+kafka-tool        # WARN (default) — only problems
+kafka-tool -v     # INFO — connections, operations, lifecycle events
+kafka-tool -vv    # DEBUG — full operation details
 ```
-
-**Open the tunnel:**
-
-```bash
-# Route all traffic for the remote subnet through the bastion
-sshuttle -r user@bastion.example.com 10.0.0.0/8
-
-# Or route only the specific broker subnet
-sshuttle -r user@bastion.example.com 10.10.5.0/24
-```
-
-Leave the `sshuttle` process running in a terminal, then start kafka-tool. Connections to broker addresses in the tunnelled subnet will be transparently routed through the bastion.
-
-### Hostname mapping
-
-Kafka brokers often advertise internal hostnames (e.g. `kafka-broker-1.internal`) that do not resolve from your machine even when the network is reachable via a tunnel. Use the **Hostname mapping** field in the cluster profile dialog to add `/etc/hosts`-style entries without touching your system hosts file:
-
-```
-# ip  hostname [alias ...]
-10.10.5.11  kafka-broker-1.internal  kafka-broker-1
-10.10.5.12  kafka-broker-2.internal  kafka-broker-2
-```
-
-These mappings apply only to connections made by kafka-tool for this profile. Lines starting with `#` are treated as comments and ignored.
 
 ---
 
 ## Data persistence
 
-Profiles are saved to `~/.config/kafka-tool/profiles.json`. No passwords or credentials are stored beyond what you enter in the profile form. To reset all profiles, delete this file.
+Profiles are saved to `~/.config/kafka-tool/profiles.json`. SSH passwords and key passphrases are stored in plain text in this file. To reset all profiles, delete this file.
 
 Application settings (theme preference) are saved to `~/.config/kafka-tool/settings.json`.
 

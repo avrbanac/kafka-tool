@@ -131,7 +131,23 @@ fun Sidebar(
                     topicCount = topics.size,
                     onToggleExpanded = { expandedProfiles[profile.id] = !isExpanded },
                     onConnect = {
-                        val vm = ClusterViewModel(profile.id, profile.bootstrapServers, profile.hostnameMapping, scope)
+                        val vm = ClusterViewModel(
+                            profileId = profile.id,
+                            bootstrapServers = profile.bootstrapServers,
+                            sshTunnelEnabled = profile.sshTunnelEnabled,
+                            sshHost = profile.sshHost,
+                            sshPort = profile.sshPort,
+                            sshUsername = profile.sshUsername,
+                            sshAuthType = profile.sshAuthType,
+                            sshKeyPath = profile.sshKeyPath,
+                            sshPassword = profile.sshPassword,
+                            sshProxyJumpEnabled = profile.sshProxyJumpEnabled,
+                            sshProxyJumpHost = profile.sshProxyJumpHost,
+                            sshProxyJumpPort = profile.sshProxyJumpPort,
+                            sshProxyJumpUsername = profile.sshProxyJumpUsername,
+                            sshProxyJumpKeyPath = profile.sshProxyJumpKeyPath,
+                            scope = scope
+                        )
                         clusterViewModels[profile.id] = vm
                         vm.connect()
                     },
@@ -213,7 +229,18 @@ fun Sidebar(
             profile = profile,
             onDismiss = { editingProfile = null },
             onSave = { updated ->
-                val mappingChanged: Boolean = updated.hostnameMapping != profile.hostnameMapping
+                val sshChanged: Boolean = updated.sshTunnelEnabled != profile.sshTunnelEnabled
+                        || updated.sshHost != profile.sshHost
+                        || updated.sshPort != profile.sshPort
+                        || updated.sshUsername != profile.sshUsername
+                        || updated.sshAuthType != profile.sshAuthType
+                        || updated.sshKeyPath != profile.sshKeyPath
+                        || updated.sshPassword != profile.sshPassword
+                        || updated.sshProxyJumpEnabled != profile.sshProxyJumpEnabled
+                        || updated.sshProxyJumpHost != profile.sshProxyJumpHost
+                        || updated.sshProxyJumpPort != profile.sshProxyJumpPort
+                        || updated.sshProxyJumpUsername != profile.sshProxyJumpUsername
+                        || updated.sshProxyJumpKeyPath != profile.sshProxyJumpKeyPath
                 val hasOpenTabs: Boolean = appState.tabs.value.any { tab ->
                     when (tab) {
                         is TabType.Consumer -> tab.profileId == profile.id
@@ -223,7 +250,7 @@ fun Sidebar(
                 }
                 appState.updateProfile(updated)
                 editingProfile = null
-                if (mappingChanged && hasOpenTabs) {
+                if (sshChanged && hasOpenTabs) {
                     mappingChangedWarningFor = profile.name
                 }
             }
@@ -233,8 +260,8 @@ fun Sidebar(
     mappingChangedWarningFor?.let { clusterName ->
         AlertDialog(
             onDismissRequest = { mappingChangedWarningFor = null },
-            title = { Text("Hostname Mapping Updated") },
-            text = { Text("Close and reopen any active tabs for \"$clusterName\" to apply the new mapping.") },
+            title = { Text("Connection Settings Updated") },
+            text = { Text("Close and reopen any active tabs for \"$clusterName\" to apply the new settings.") },
             confirmButton = {
                 Button(onClick = { mappingChangedWarningFor = null }) {
                     Text("OK")

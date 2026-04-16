@@ -72,8 +72,11 @@ fun TabArea(
                     is TabType.Consumer -> {
                         val profile: ClusterProfile? = profiles.find { it.id == activeTab.profileId }
                         if (profile != null) {
+                            val clusterVm: ClusterViewModel? = clusterViewModels[activeTab.profileId]
+                            val bootstrap: String = clusterVm?.effectiveBootstrapServers ?: profile.bootstrapServers
+                            val mapping: String = clusterVm?.effectiveHostnameMapping ?: ""
                             val vm: ConsumerViewModel = consumerViewModels.getOrPut(activeTab.id) {
-                                ConsumerViewModel(profile.bootstrapServers, profile.id, profile.hostnameMapping, activeTab.topicName, scope)
+                                ConsumerViewModel(bootstrap, profile.id, mapping, activeTab.topicName, scope)
                             }
                             ConsumerTab(viewModel = vm, modifier = Modifier.fillMaxSize())
                         }
@@ -81,8 +84,11 @@ fun TabArea(
                     is TabType.Producer -> {
                         val profile: ClusterProfile? = profiles.find { it.id == activeTab.profileId }
                         if (profile != null) {
+                            val clusterVm: ClusterViewModel? = clusterViewModels[activeTab.profileId]
+                            val bootstrap: String = clusterVm?.effectiveBootstrapServers ?: profile.bootstrapServers
+                            val mapping: String = clusterVm?.effectiveHostnameMapping ?: ""
                             val vm: ProducerViewModel = producerViewModels.getOrPut(activeTab.id) {
-                                ProducerViewModel(profile.bootstrapServers, profile.id, profile.hostnameMapping, activeTab.topicName, scope)
+                                ProducerViewModel(bootstrap, profile.id, mapping, activeTab.topicName, scope)
                             }
                             ProducerTab(viewModel = vm, modifier = Modifier.fillMaxSize())
                         }

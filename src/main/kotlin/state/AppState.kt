@@ -5,8 +5,13 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import model.ClusterProfile
 import model.TabType
+import model.displayName
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 
 class AppState {
+    private val logger: Logger = LoggerFactory.getLogger(AppState::class.java)
+
     private val _profiles: MutableStateFlow<List<ClusterProfile>> = MutableStateFlow(emptyList())
     val profiles: StateFlow<List<ClusterProfile>> = _profiles.asStateFlow()
 
@@ -18,20 +23,24 @@ class AppState {
 
     fun setProfiles(profiles: List<ClusterProfile>) {
         _profiles.value = profiles
+        logger.debug("Profiles set, count={}", profiles.size)
     }
 
     fun addProfile(profile: ClusterProfile) {
         _profiles.value = _profiles.value + profile
+        logger.info("Profile added: '{}'", profile.name)
     }
 
     fun updateProfile(profile: ClusterProfile) {
         _profiles.value = _profiles.value.map { existing ->
             if (existing.id == profile.id) profile else existing
         }
+        logger.info("Profile updated: '{}'", profile.name)
     }
 
     fun removeProfile(id: String) {
         _profiles.value = _profiles.value.filter { it.id != id }
+        logger.info("Profile removed: id={}", id)
     }
 
     fun openTab(tab: TabType) {
@@ -42,11 +51,13 @@ class AppState {
                 .find { it.profileId == tab.profileId }
             if (existing != null) {
                 _activeTabId.value = existing.id
+                logger.debug("Reused existing TopicManagement tab: id={}", existing.id)
                 return
             }
         }
         _tabs.value = _tabs.value + tab
         _activeTabId.value = tab.id
+        logger.info("Tab opened: {} (id={})", tab.displayName(), tab.id)
     }
 
     fun closeTab(id: String) {
@@ -54,6 +65,7 @@ class AppState {
         if (_activeTabId.value == id) {
             _activeTabId.value = _tabs.value.lastOrNull()?.id
         }
+        logger.info("Tab closed: id={}", id)
     }
 
     fun setActiveTab(id: String) {
