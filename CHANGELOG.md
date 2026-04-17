@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-04-17
+
+### Changed
+- Consumer message details: replaced the right-side detail panel with an inline expandable row. Clicking the chevron at the start of a row expands it in place, showing headers (key-value pairs) above a scrollable prettified value box (capped at 300dp). Only one row can be expanded at a time.
+- Row content in both collapsed and expanded form is now text-selectable; toggling expansion is handled exclusively by the leading chevron so selection is not disturbed.
+
 ## [1.1.0] - 2026-04-16
 
 ### Added

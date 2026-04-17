@@ -48,7 +48,7 @@ cd kafka-tool
 ```bash
 # Debian / Ubuntu package (.deb)
 ./gradlew packageDeb
-# Output: build/compose/binaries/main/deb/kafka-tool_1.1.0_amd64.deb
+# Output: build/compose/binaries/main/deb/kafka-tool_1.2.0_amd64.deb
 
 # AppImage (portable, no installation required)
 ./gradlew packageAppImage
@@ -58,7 +58,7 @@ cd kafka-tool
 ### Installing the .deb package
 
 ```bash
-sudo apt install ./build/compose/binaries/main/deb/kafka-tool_1.1.0_amd64.deb
+sudo apt install ./build/compose/binaries/main/deb/kafka-tool_1.2.0_amd64.deb
 ```
 
 The package installs everything under `/opt/kafka-tool/`. The binary is **not** placed on `PATH` automatically, so either run it directly:

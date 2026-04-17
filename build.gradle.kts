@@ -8,7 +8,7 @@ plugins {
 }
 
 group = "com.kafkatool"
-version = "1.1.0"
+version = "1.2.0"
 
 kotlin {
     jvmToolchain(21)
@@ -37,7 +37,7 @@ compose.desktop {
         nativeDistributions {
             targetFormats(TargetFormat.Deb, TargetFormat.AppImage)
             packageName = "kafka-tool"
-            packageVersion = "1.1.0"
+            packageVersion = "1.2.0"
             description = "Desktop GUI tool for Apache Kafka"
             vendor = "kafka-tool"
             modules("java.management", "java.naming", "java.security.sasl")

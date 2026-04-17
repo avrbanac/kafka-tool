@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
@@ -29,6 +30,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Stop
@@ -46,7 +49,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TooltipBox
 import androidx.compose.material3.TooltipDefaults
-import androidx.compose.material3.VerticalDivider
 import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -87,7 +89,7 @@ fun ConsumerTab(
     var specificOffsetText: String by remember { mutableStateOf("0") }
     var maxMessagesText: String by remember { mutableStateOf("100") }
     var unlimited: Boolean by remember { mutableStateOf(false) }
-    var selectedMessage: KafkaMessage? by remember { mutableStateOf(null) }
+    var expandedMessage: KafkaMessage? by remember { mutableStateOf(null) }
 
     Column(modifier = modifier) {
         // Config bar
@@ -293,7 +295,7 @@ fun ConsumerTab(
                     tooltip = { PlainTooltip { Text("Clear all messages") } },
                     state = rememberTooltipState()
                 ) {
-                    IconButton(onClick = { viewModel.clearMessages(); selectedMessage = null }) {
+                    IconButton(onClick = { viewModel.clearMessages(); expandedMessage = null }) {
                         Icon(Icons.Default.Delete, contentDescription = "Clear messages")
                     }
                 }
@@ -309,98 +311,92 @@ fun ConsumerTab(
             )
         }
 
-        Row(modifier = Modifier.weight(1f).fillMaxWidth()) {
-            Column(modifier = Modifier.weight(1f).fillMaxHeight()) {
-                // Header
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(MaterialTheme.colorScheme.surfaceVariant)
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
-                ) {
-                    Text("Part", style = MaterialTheme.typography.labelSmall, modifier = Modifier.width(40.dp))
-                    Text("Offset", style = MaterialTheme.typography.labelSmall, modifier = Modifier.width(80.dp))
-                    Text("Timestamp", style = MaterialTheme.typography.labelSmall, modifier = Modifier.width(190.dp))
-                    Text("Key", style = MaterialTheme.typography.labelSmall, modifier = Modifier.width(120.dp))
-                    Text("Value", style = MaterialTheme.typography.labelSmall, modifier = Modifier.weight(1f))
-                }
-                HorizontalDivider()
+        Column(modifier = Modifier.weight(1f).fillMaxWidth()) {
+            // Header
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .padding(horizontal = 8.dp, vertical = 4.dp)
+            ) {
+                Spacer(modifier = Modifier.width(24.dp))
+                Text("Part", style = MaterialTheme.typography.labelSmall, modifier = Modifier.width(40.dp))
+                Text("Offset", style = MaterialTheme.typography.labelSmall, modifier = Modifier.width(80.dp))
+                Text("Timestamp", style = MaterialTheme.typography.labelSmall, modifier = Modifier.width(190.dp))
+                Text("Key", style = MaterialTheme.typography.labelSmall, modifier = Modifier.width(120.dp))
+                Text("Value", style = MaterialTheme.typography.labelSmall, modifier = Modifier.weight(1f))
+            }
+            HorizontalDivider()
 
-                // Filter field
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
-                        .border(1.dp, MaterialTheme.colorScheme.outline, MaterialTheme.shapes.extraSmall)
-                        .padding(horizontal = 8.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        Icons.Default.Search,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    BasicTextField(
-                        value = filterText,
-                        onValueChange = { viewModel.setFilterText(it) },
-                        singleLine = true,
-                        modifier = Modifier.weight(1f),
-                        textStyle = MaterialTheme.typography.bodySmall.copy(
-                            color = MaterialTheme.colorScheme.onSurface
-                        ),
-                        decorationBox = { innerTextField: @Composable () -> Unit ->
-                            Box {
-                                if (filterText.isEmpty()) {
-                                    Text(
-                                        "Filter by key, value, or headers...",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                                innerTextField()
+            // Filter field
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                    .border(1.dp, MaterialTheme.colorScheme.outline, MaterialTheme.shapes.extraSmall)
+                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    Icons.Default.Search,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                BasicTextField(
+                    value = filterText,
+                    onValueChange = { viewModel.setFilterText(it) },
+                    singleLine = true,
+                    modifier = Modifier.weight(1f),
+                    textStyle = MaterialTheme.typography.bodySmall.copy(
+                        color = MaterialTheme.colorScheme.onSurface
+                    ),
+                    decorationBox = { innerTextField: @Composable () -> Unit ->
+                        Box {
+                            if (filterText.isEmpty()) {
+                                Text(
+                                    "Filter by key, value, or headers...",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                             }
+                            innerTextField()
                         }
+                    }
+                )
+                if (filterText.isNotEmpty()) {
+                    Icon(
+                        Icons.Default.Close,
+                        contentDescription = "Clear filter",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(16.dp).clickable { viewModel.setFilterText("") }
                     )
-                    if (filterText.isNotEmpty()) {
-                        Icon(
-                            Icons.Default.Close,
-                            contentDescription = "Clear filter",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(16.dp).clickable { viewModel.setFilterText("") }
-                        )
-                    }
-                }
-
-                val listState = rememberLazyListState()
-                LaunchedEffect(messages.size) {
-                    if (filteredMessages.isNotEmpty() && filterText.isBlank()) {
-                        listState.scrollToItem(filteredMessages.size - 1)
-                    }
-                }
-
-                LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
-                    items(filteredMessages) { message ->
-                        MessageRow(
-                            message = message,
-                            isSelected = message == selectedMessage,
-                            onClick = {
-                                selectedMessage = if (selectedMessage == message) null else message
-                            }
-                        )
-                        HorizontalDivider(thickness = 0.5.dp)
-                    }
                 }
             }
 
-            selectedMessage?.let { msg ->
-                VerticalDivider()
-                MessageDetailPanel(
-                    message = msg,
-                    onClose = { selectedMessage = null },
-                    modifier = Modifier.width(320.dp).fillMaxHeight()
-                )
+            val listState = rememberLazyListState()
+            LaunchedEffect(messages.size) {
+                if (filteredMessages.isNotEmpty() && filterText.isBlank()) {
+                    listState.scrollToItem(filteredMessages.size - 1)
+                }
+            }
+
+            LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
+                items(filteredMessages) { message ->
+                    val isExpanded: Boolean = message == expandedMessage
+                    MessageRow(
+                        message = message,
+                        isExpanded = isExpanded,
+                        onToggleExpanded = {
+                            expandedMessage = if (isExpanded) null else message
+                        }
+                    )
+                    if (isExpanded) {
+                        ExpandedMessagePanel(message = message)
+                    }
+                    HorizontalDivider(thickness = 0.5.dp)
+                }
             }
         }
 
@@ -431,10 +427,10 @@ fun ConsumerTab(
 @Composable
 private fun MessageRow(
     message: KafkaMessage,
-    isSelected: Boolean,
-    onClick: () -> Unit
+    isExpanded: Boolean,
+    onToggleExpanded: () -> Unit
 ) {
-    val background = if (isSelected)
+    val background: Color = if (isExpanded)
         MaterialTheme.colorScheme.primaryContainer
     else
         MaterialTheme.colorScheme.surface
@@ -443,73 +439,72 @@ private fun MessageRow(
         modifier = Modifier
             .fillMaxWidth()
             .background(background)
-            .clickable(onClick = onClick)
             .padding(horizontal = 8.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            text = message.partition.toString(),
-            style = MaterialTheme.typography.bodySmall,
-            modifier = Modifier.width(40.dp)
-        )
-        Text(
-            text = message.offset.toString(),
-            style = MaterialTheme.typography.bodySmall,
-            modifier = Modifier.width(80.dp)
-        )
-        Text(
-            text = message.formattedTimestamp(),
-            style = MaterialTheme.typography.bodySmall,
-            modifier = Modifier.width(190.dp)
-        )
-        Text(
-            text = message.key ?: "(null)",
-            style = MaterialTheme.typography.bodySmall,
-            modifier = Modifier.width(120.dp),
-            color = if (message.key == null) MaterialTheme.colorScheme.onSurfaceVariant
-                    else MaterialTheme.colorScheme.onSurface
-        )
-        Text(
-            text = message.value ?: "(null)",
-            style = MaterialTheme.typography.bodySmall,
-            modifier = Modifier.weight(1f),
-            maxLines = 1,
-            color = if (message.value == null) MaterialTheme.colorScheme.onSurfaceVariant
-                    else MaterialTheme.colorScheme.onSurface
-        )
+        Box(
+            modifier = Modifier
+                .size(24.dp)
+                .clickable(onClick = onToggleExpanded),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = if (isExpanded) Icons.Default.KeyboardArrowDown else Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = if (isExpanded) "Collapse" else "Expand",
+                modifier = Modifier.size(16.dp)
+            )
+        }
+        SelectionContainer(modifier = Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = message.partition.toString(),
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.width(40.dp)
+                )
+                Text(
+                    text = message.offset.toString(),
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.width(80.dp)
+                )
+                Text(
+                    text = message.formattedTimestamp(),
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.width(190.dp)
+                )
+                Text(
+                    text = message.key ?: "(null)",
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.width(120.dp),
+                    color = if (message.key == null) MaterialTheme.colorScheme.onSurfaceVariant
+                            else MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = message.value ?: "(null)",
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.weight(1f),
+                    maxLines = 1,
+                    color = if (message.value == null) MaterialTheme.colorScheme.onSurfaceVariant
+                            else MaterialTheme.colorScheme.onSurface
+                )
+            }
+        }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun MessageDetailPanel(
+private fun ExpandedMessagePanel(
     message: KafkaMessage,
-    onClose: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val displayValue: String = remember(message.value) { prettyPrintIfJson(message.value) }
     val vState: androidx.compose.foundation.ScrollState = rememberScrollState()
     val hState: androidx.compose.foundation.ScrollState = rememberScrollState()
 
-    Column(modifier = modifier.padding(12.dp)) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text("Message Detail", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-            TooltipBox(
-                positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
-                tooltip = { PlainTooltip { Text("Close detail panel") } },
-                state = rememberTooltipState()
-            ) {
-                IconButton(onClick = onClose, modifier = Modifier.padding(0.dp)) {
-                    Icon(Icons.Default.Close, contentDescription = "Close")
-                }
-            }
-        }
-        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(start = 32.dp, end = 16.dp, top = 8.dp, bottom = 12.dp)
+    ) {
         SelectionContainer {
             Column {
                 DetailRow(label = "Partition", value = message.partition.toString())
@@ -519,12 +514,37 @@ private fun MessageDetailPanel(
             }
         }
 
-        Spacer(modifier = Modifier.padding(top = 8.dp))
-        Text("Value", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+        if (message.headers.isNotEmpty()) {
+            HorizontalDivider(
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+                thickness = 1.dp,
+                color = MaterialTheme.colorScheme.outlineVariant
+            )
+            Text("Headers:", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+            SelectionContainer {
+                Column {
+                    message.headers.forEach { (k, v) ->
+                        DetailRow(label = k, value = v)
+                    }
+                }
+            }
+        }
+
+        HorizontalDivider(
+            modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+            thickness = 1.dp,
+            color = MaterialTheme.colorScheme.outlineVariant
+        )
+        Text("Value:", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
         Spacer(modifier = Modifier.padding(top = 4.dp))
 
-        SelectionContainer(modifier = Modifier.weight(1f)) {
-            Box(modifier = Modifier.background(MaterialTheme.colorScheme.surfaceVariant)) {
+        SelectionContainer(modifier = Modifier.fillMaxWidth()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 300.dp)
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+            ) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -549,18 +569,6 @@ private fun MessageDetailPanel(
                     modifier = Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(end = 12.dp),
                     adapter = androidx.compose.foundation.rememberScrollbarAdapter(hState)
                 )
-            }
-        }
-
-        if (message.headers.isNotEmpty()) {
-            Spacer(modifier = Modifier.padding(top = 8.dp))
-            Text("Headers", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
-            SelectionContainer {
-                Column {
-                    message.headers.forEach { (k, v) ->
-                        DetailRow(label = k, value = v)
-                    }
-                }
             }
         }
     }
