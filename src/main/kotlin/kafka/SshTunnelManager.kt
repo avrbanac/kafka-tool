@@ -154,6 +154,14 @@ class SshTunnelManager(
             } catch (e: Exception) {
                 logger.debug("Error closing server socket for {}: {}", entry.remoteHost, e.message)
             }
+            entry.forwarderThread.interrupt()
+        }
+        for (entry in tunnels) {
+            try {
+                entry.forwarderThread.join(500)
+            } catch (e: InterruptedException) {
+                Thread.currentThread().interrupt()
+            }
         }
         tunnels.clear()
         hostnameToLoopback.clear()

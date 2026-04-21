@@ -18,7 +18,7 @@ private val logger: Logger = LoggerFactory.getLogger("Main")
 
 fun main(args: Array<String>) {
     configureLogLevel(args)
-    logger.info("Kafka Tool 1.2.0 starting")
+    logger.info("Kafka Tool 1.3.0 starting")
 
     val iconPainter: BitmapPainter? = Thread.currentThread()
         .contextClassLoader
@@ -28,7 +28,7 @@ fun main(args: Array<String>) {
     application {
         Window(
             onCloseRequest = ::exitApplication,
-            title = "Kafka Tool 1.2.0",
+            title = "Kafka Tool 1.3.0",
             icon = iconPainter,
             state = rememberWindowState(size = DpSize(1280.dp, 800.dp))
         ) {

@@ -162,15 +162,35 @@ class ClusterViewModel(
     fun disconnect() {
         logger.info("Disconnecting from cluster '{}'", profileId)
         stopTopicMetrics()
-        adminClient?.close()
+        val clientToClose: AdminClientWrapper? = adminClient
+        val tunnelToClose: SshTunnelManager? = tunnelManager
         adminClient = null
-        tunnelManager?.close()
         tunnelManager = null
         if (sshTunnelEnabled) MappingHostnameStore.setSshTunnelActive(false)
         _connected.value = false
         _topics.value = emptyList()
         _error.value = null
         MappingHostnameStore.removeMapping(profileId)
+        scope.launch(Dispatchers.IO) {
+            closeResourcesQuietly(clientToClose, tunnelToClose, "disconnect")
+        }
+    }
+
+    private fun closeResourcesQuietly(
+        client: AdminClientWrapper?,
+        tunnel: SshTunnelManager?,
+        context: String
+    ) {
+        try {
+            client?.close()
+        } catch (e: Exception) {
+            logger.warn("Error closing AdminClient during {} for cluster '{}'", context, profileId, e)
+        }
+        try {
+            tunnel?.close()
+        } catch (e: Exception) {
+            logger.warn("Error closing SSH tunnel manager during {} for cluster '{}'", context, profileId, e)
+        }
     }
 
     fun refreshTopics() {
@@ -394,19 +414,15 @@ class ClusterViewModel(
     override fun close() {
         metricsJob?.cancel()
         metricsJob = null
-        try {
-            adminClient?.close()
-        } catch (e: Exception) {
-            logger.warn("Error closing AdminClient for cluster '{}'", profileId, e)
-        }
-        try {
-            tunnelManager?.close()
-        } catch (e: Exception) {
-            logger.warn("Error closing SSH tunnel manager for cluster '{}'", profileId, e)
-        }
+        val clientToClose: AdminClientWrapper? = adminClient
+        val tunnelToClose: SshTunnelManager? = tunnelManager
+        adminClient = null
         tunnelManager = null
         if (sshTunnelEnabled) MappingHostnameStore.setSshTunnelActive(false)
         MappingHostnameStore.removeMapping(profileId)
-        logger.debug("ClusterViewModel closed for profile '{}'", profileId)
+        scope.launch(Dispatchers.IO) {
+            closeResourcesQuietly(clientToClose, tunnelToClose, "close")
+            logger.debug("ClusterViewModel close completed for profile '{}'", profileId)
+        }
     }
 }

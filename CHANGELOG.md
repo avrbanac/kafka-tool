@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-04-21
+
+### Added
+- Topic metrics panel in the topic detail view: message count, message rate (msg/s), average stored bytes per message, throughput (bytes/s), leader bytes on disk, and total bytes across all replicas. Samples every 15 seconds via `listOffsets` + `describeLogDirs`, with a manual refresh button. Intended primarily for capacity planning — the average size reflects on-disk bytes (including record overhead and compression), which is the number you want when sizing broker storage
+
+### Fixed
+- CPU usage spiking to ~1000% after disconnecting from an SSH-tunneled cluster. Root cause: `LocalPortForwarder.listen()` in sshj 0.39.0 catches the `SocketException` thrown by a closed `ServerSocket` and immediately re-enters `accept()`, exiting the loop only on thread interrupt. `SshTunnelManager.close()` now interrupts and briefly joins each forwarder thread after closing its server socket
+- UI freeze of up to ~10 seconds during disconnect. `ClusterViewModel.disconnect()` and `close()` now flip UI-visible state (connected flag, topic list, client references) synchronously on the caller thread and dispatch the blocking `AdminClient` / SSH tunnel teardown to `Dispatchers.IO`
+
 ## [1.2.0] - 2026-04-17
 
 ### Changed
