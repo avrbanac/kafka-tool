@@ -142,6 +142,54 @@ class AdminClientWrapper(bootstrapServers: String, profileId: String = "", hostn
         return nodes
     }
 
+    data class PartitionOffsets(val beginningOffset: Long, val endOffset: Long)
+
+    fun getTopicOffsets(topicName: String): Map<Int, PartitionOffsets> {
+        logger.debug("Fetching begin/end offsets for topic '{}'", topicName)
+        val descriptions = adminClient.describeTopics(listOf(topicName)).allTopicNames().get(10, TimeUnit.SECONDS)
+        val partitions: List<TopicPartition> = descriptions[topicName]
+            ?.partitions()
+            ?.map { TopicPartition(topicName, it.partition()) }
+            ?: return emptyMap()
+        val earliestSpec: Map<TopicPartition, OffsetSpec> = partitions.associateWith { OffsetSpec.earliest() }
+        val latestSpec: Map<TopicPartition, OffsetSpec> = partitions.associateWith { OffsetSpec.latest() }
+        val earliestResults = adminClient.listOffsets(earliestSpec).all().get(10, TimeUnit.SECONDS)
+        val latestResults = adminClient.listOffsets(latestSpec).all().get(10, TimeUnit.SECONDS)
+        return partitions.associate { tp ->
+            val begin: Long = earliestResults[tp]?.offset() ?: 0L
+            val end: Long = latestResults[tp]?.offset() ?: 0L
+            tp.partition() to PartitionOffsets(begin, end)
+        }
+    }
+
+    data class TopicLogDirStats(val leaderBytes: Long, val totalBytes: Long)
+
+    fun getTopicLogDirStats(topicName: String): TopicLogDirStats {
+        logger.debug("Fetching log dir stats for topic '{}'", topicName)
+        val descriptions = adminClient.describeTopics(listOf(topicName)).allTopicNames().get(10, TimeUnit.SECONDS)
+        val partitionLeaders: Map<Int, Int> = descriptions[topicName]
+            ?.partitions()
+            ?.associate { it.partition() to (it.leader()?.id() ?: -1) }
+            ?: return TopicLogDirStats(0L, 0L)
+        val brokerIds: List<Int> = adminClient.describeCluster().nodes().get(10, TimeUnit.SECONDS).map { it.id() }
+        val logDirs = adminClient.describeLogDirs(brokerIds).allDescriptions().get(10, TimeUnit.SECONDS)
+        var leaderBytes: Long = 0L
+        var totalBytes: Long = 0L
+        for ((brokerId, dirMap) in logDirs) {
+            for ((_, logDirDescription) in dirMap) {
+                for ((tp, replicaInfo) in logDirDescription.replicaInfos()) {
+                    if (tp.topic() != topicName) continue
+                    val size: Long = replicaInfo.size()
+                    totalBytes += size
+                    if (partitionLeaders[tp.partition()] == brokerId) {
+                        leaderBytes += size
+                    }
+                }
+            }
+        }
+        return TopicLogDirStats(leaderBytes, totalBytes)
+    }
+
     fun truncateTopic(topicName: String) {
         logger.info("Truncating topic '{}'", topicName)
         val descriptions = adminClient.describeTopics(listOf(topicName)).allTopicNames().get(10, TimeUnit.SECONDS)

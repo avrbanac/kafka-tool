@@ -62,7 +62,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.runtime.DisposableEffect
 import model.TopicInfo
+import model.TopicMetrics
 import state.ClusterViewModel
 
 @Composable
@@ -302,6 +304,15 @@ private fun TopicDetailPanel(
     var showTruncateDialog: Boolean by remember { mutableStateOf(false) }
     var showStructureDialog: Boolean by remember { mutableStateOf(false) }
 
+    val metrics: TopicMetrics? by clusterViewModel.topicMetrics.collectAsState()
+    val metricsLoading: Boolean by clusterViewModel.metricsLoading.collectAsState()
+    val metricsError: String? by clusterViewModel.metricsError.collectAsState()
+
+    DisposableEffect(topic.name) {
+        clusterViewModel.startTopicMetrics(topic.name)
+        onDispose { clusterViewModel.stopTopicMetrics() }
+    }
+
     androidx.compose.runtime.LaunchedEffect(topic.name, configRefreshTrigger) {
         configLoading = true
         configError = null
@@ -362,6 +373,58 @@ private fun TopicDetailPanel(
         DetailRow(label = "Partitions", value = topic.partitionCount.toString())
         DetailRow(label = "Replication", value = topic.replicationFactor.toString())
         DetailRow(label = "Internal", value = topic.isInternal.toString())
+
+        Spacer(modifier = Modifier.padding(top = 12.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text("Metrics", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+            if (metricsLoading) {
+                CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+            } else {
+                TooltipIconButton(tooltip = "Refresh metrics", onClick = { clusterViewModel.refreshTopicMetrics() }) {
+                    Icon(Icons.Default.Refresh, contentDescription = "Refresh metrics")
+                }
+            }
+        }
+        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+        metricsError?.let { err ->
+            Text(
+                text = err,
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(bottom = 4.dp)
+            )
+        }
+
+        val snapshot: TopicMetrics? = metrics
+        if (snapshot != null) {
+            DetailRow(label = "Messages", value = formatCount(snapshot.totalMessages))
+            DetailRow(
+                label = "Msg rate",
+                value = if (snapshot.messageRatePerSec > 0.0) "%.1f msg/s".format(snapshot.messageRatePerSec) else "—"
+            )
+            DetailRow(
+                label = "Avg size",
+                value = if (snapshot.totalMessages > 0L) formatBytes((snapshot.avgStoredBytesPerMessage).toLong()) else "—"
+            )
+            DetailRow(
+                label = "Throughput",
+                value = if (snapshot.bytesRatePerSec > 0.0) "${formatBytes(snapshot.bytesRatePerSec.toLong())}/s" else "—"
+            )
+            DetailRow(label = "Leader bytes", value = formatBytes(snapshot.leaderBytesOnDisk))
+            DetailRow(label = "Total bytes (all replicas)", value = formatBytes(snapshot.totalBytesOnDisk))
+        } else if (metricsError == null) {
+            Text(
+                text = "Sampling…",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(vertical = 2.dp)
+            )
+        }
 
         Spacer(modifier = Modifier.padding(top = 12.dp))
         Text("Configuration", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
@@ -596,6 +659,22 @@ private fun TooltipIconButton(
             content()
         }
     }
+}
+
+private fun formatBytes(bytes: Long): String {
+    if (bytes < 1024L) return "$bytes B"
+    val units: Array<String> = arrayOf("KiB", "MiB", "GiB", "TiB", "PiB")
+    var value: Double = bytes.toDouble() / 1024.0
+    var unitIndex: Int = 0
+    while (value >= 1024.0 && unitIndex < units.size - 1) {
+        value /= 1024.0
+        unitIndex++
+    }
+    return "%.2f %s".format(value, units[unitIndex])
+}
+
+private fun formatCount(count: Long): String {
+    return "%,d".format(count)
 }
 
 @Composable

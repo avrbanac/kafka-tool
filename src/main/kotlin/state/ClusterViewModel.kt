@@ -6,14 +6,17 @@ import kafka.MappingHostnameStore
 import kafka.SshTunnelManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import model.BrokerNode
 import model.SshAuthType
 import model.TopicInfo
+import model.TopicMetrics
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
@@ -58,6 +61,19 @@ class ClusterViewModel(
 
     private val _loadingTopics: MutableStateFlow<Boolean> = MutableStateFlow(false)
     val loadingTopics: StateFlow<Boolean> = _loadingTopics.asStateFlow()
+
+    private val _topicMetrics: MutableStateFlow<TopicMetrics?> = MutableStateFlow(null)
+    val topicMetrics: StateFlow<TopicMetrics?> = _topicMetrics.asStateFlow()
+
+    private val _metricsLoading: MutableStateFlow<Boolean> = MutableStateFlow(false)
+    val metricsLoading: StateFlow<Boolean> = _metricsLoading.asStateFlow()
+
+    private val _metricsError: MutableStateFlow<String?> = MutableStateFlow(null)
+    val metricsError: StateFlow<String?> = _metricsError.asStateFlow()
+
+    private var metricsJob: Job? = null
+    private var currentMetricsTopic: String? = null
+    private var lastMetricsSample: TopicMetrics? = null
 
     fun connect() {
         scope.launch(Dispatchers.IO) {
@@ -145,6 +161,7 @@ class ClusterViewModel(
 
     fun disconnect() {
         logger.info("Disconnecting from cluster '{}'", profileId)
+        stopTopicMetrics()
         adminClient?.close()
         adminClient = null
         tunnelManager?.close()
@@ -287,7 +304,96 @@ class ClusterViewModel(
         }
     }
 
+    fun startTopicMetrics(topicName: String) {
+        metricsJob?.cancel()
+        currentMetricsTopic = topicName
+        lastMetricsSample = null
+        _topicMetrics.value = null
+        _metricsError.value = null
+        metricsJob = scope.launch(Dispatchers.IO) {
+            while (isActive) {
+                sampleTopicMetrics(topicName)
+                delay(15_000)
+            }
+        }
+    }
+
+    fun refreshTopicMetrics() {
+        val topicName: String = currentMetricsTopic ?: return
+        startTopicMetrics(topicName)
+    }
+
+    fun stopTopicMetrics() {
+        metricsJob?.cancel()
+        metricsJob = null
+        currentMetricsTopic = null
+        lastMetricsSample = null
+        _topicMetrics.value = null
+        _metricsError.value = null
+        _metricsLoading.value = false
+    }
+
+    private fun sampleTopicMetrics(topicName: String) {
+        _metricsLoading.value = true
+        try {
+            val client: AdminClientWrapper = adminClient ?: run {
+                _metricsError.value = "Not connected"
+                return
+            }
+            val topicInfo: TopicInfo? = _topics.value.firstOrNull { it.name == topicName }
+            val offsets: Map<Int, AdminClientWrapper.PartitionOffsets> = client.getTopicOffsets(topicName)
+            val logDirStats: AdminClientWrapper.TopicLogDirStats = client.getTopicLogDirStats(topicName)
+            val totalMessages: Long = offsets.values.sumOf { it.endOffset - it.beginningOffset }
+            val avgStoredBytesPerMessage: Double = if (totalMessages > 0L)
+                logDirStats.leaderBytes.toDouble() / totalMessages.toDouble()
+            else 0.0
+
+            val now: Long = System.currentTimeMillis()
+            val previous: TopicMetrics? = lastMetricsSample
+            val messageRatePerSec: Double
+            val bytesRatePerSec: Double
+            if (previous != null && previous.topicName == topicName) {
+                val dtSec: Double = (now - previous.sampleTimestampMs).toDouble() / 1000.0
+                if (dtSec > 0.0) {
+                    val dMessages: Long = totalMessages - previous.totalMessages
+                    val dBytes: Long = logDirStats.leaderBytes - previous.leaderBytesOnDisk
+                    messageRatePerSec = if (dMessages >= 0L) dMessages.toDouble() / dtSec else 0.0
+                    bytesRatePerSec = if (dBytes >= 0L) dBytes.toDouble() / dtSec else 0.0
+                } else {
+                    messageRatePerSec = 0.0
+                    bytesRatePerSec = 0.0
+                }
+            } else {
+                messageRatePerSec = 0.0
+                bytesRatePerSec = 0.0
+            }
+
+            val metrics = TopicMetrics(
+                topicName = topicName,
+                partitionCount = topicInfo?.partitionCount ?: offsets.size,
+                replicationFactor = topicInfo?.replicationFactor ?: 0,
+                totalMessages = totalMessages,
+                leaderBytesOnDisk = logDirStats.leaderBytes,
+                totalBytesOnDisk = logDirStats.totalBytes,
+                avgStoredBytesPerMessage = avgStoredBytesPerMessage,
+                messageRatePerSec = messageRatePerSec,
+                bytesRatePerSec = bytesRatePerSec,
+                sampleTimestampMs = now
+            )
+            lastMetricsSample = metrics
+            _topicMetrics.value = metrics
+            _metricsError.value = null
+        } catch (e: Exception) {
+            logger.error("Failed to sample metrics for topic '{}' on cluster '{}'", topicName, profileId, e)
+            _metricsError.value = "Metrics failed: ${e.message}"
+        } finally {
+            _metricsLoading.value = false
+        }
+    }
+
     override fun close() {
+        metricsJob?.cancel()
+        metricsJob = null
         try {
             adminClient?.close()
         } catch (e: Exception) {
